@@ -1,16 +1,18 @@
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/sysmacros.h>
 
 #define CAML_NAME_SPACE
 #define CAML_INTERNALS
 #include <caml/alloc.h>
 #include <caml/custom.h>
-#include <caml/memory.h>
 #include <caml/mlvalues.h>
+#include <caml/memory.h>
 #include <caml/fail.h>
 #include <caml/bigarray.h>
 #include <caml/unixsupport.h>
@@ -129,7 +131,7 @@ static long cstruct_len(value v_cstruct) {
 }
 
 CAMLprim value ocaml_drm_exec_buffer(value v_fd, value v_cmd, value v_ring_idx, value v_handles) {
-  CAMLparam2(v_cmd, v_handles);
+  CAMLparam3(v_cmd, v_ring_idx, v_handles);
   int ret;
   struct drm_virtgpu_execbuffer exec = {
     .command = (uint64_t) cstruct_start(v_cmd),
@@ -313,14 +315,31 @@ CAMLprim value ocaml_safe_map_file(value vfd, value vkind, value vstart, value v
   return caml_unix_mapped_alloc2(flags, 1, addr, dim);
 }
 
-CAMLprim void ocaml_ba_unmap(value v)
+CAMLprim value ocaml_drm_get_dev(value v)
 {
-  struct caml_ba_array * b = Caml_ba_array_val(v);
+  CAMLparam0();
+
+  intnat fd = Long_val(v);
+  if (fd < 0 || fd > INT_MAX)
+    caml_invalid_argument("Invalid file descriptor");
+  struct stat statbuf;
+  if (fstat((int)fd, &statbuf) == -1)
+    unix_error(errno, "stat", Nothing);
+  if (!S_ISCHR(statbuf.st_mode))
+    caml_failwith("Not a character special device file");
+  dev_t dev = statbuf.st_rdev;
+  CAMLreturn(caml_alloc_initialized_string(sizeof(dev), (const char *)&dev));
+}
+
+CAMLprim value ocaml_ba_unmap(value v)
+{
+  CAMLparam1(v);
   int i;
 
   /* Free data if we're the last user, or decr ref count if not */
   caml_ba_mapped_finalize2(v);
 
+  struct caml_ba_array * b = Caml_ba_array_val(v);
   /* Prevent later GC or free from doing anything more.
      Might need a lock here with multicore?
      This is best-efforts anyway, as the compiler is allowed to assume
@@ -331,4 +350,5 @@ CAMLprim void ocaml_ba_unmap(value v)
   /* Tidy up (and let C users know that the data is gone). */
   b->data = NULL;
   b->proxy = NULL;
+  CAMLreturn(Val_unit);
 }
