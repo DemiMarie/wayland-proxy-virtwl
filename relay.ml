@@ -1237,6 +1237,34 @@ let make_viewporter bind proxy =
       make_viewport ~host_viewport viewport
   end
 
+let make_cursor_dev ~host_dev c =
+  let h = host_dev @@ new H.Wp_cursor_shape_device_v1.v1 in
+  Proxy.Handler.attach c @@ object
+    inherit [_] C.Wp_cursor_shape_device_v1.v1
+
+    method on_destroy = delete_with H.Wp_cursor_shape_device_v1.destroy h
+    method on_set_shape _ = H.Wp_cursor_shape_device_v1.set_shape h
+  end
+
+let make_cursor_shape_manager bind proxy =
+  let proxy = Proxy.cast_version proxy in
+  let h = bind @@ new H.Wp_cursor_shape_manager_v1.v1 in
+  Proxy.Handler.attach proxy @@ object
+    inherit [_] C.Wp_cursor_shape_manager_v1.v1
+
+    method on_destroy = delete_with H.Wp_cursor_shape_manager_v1.destroy h
+
+    method on_get_tablet_tool_v2 _ dev ~tablet_tool =
+      let tablet_tool = to_host tablet_tool in
+      let host_dev = H.Wp_cursor_shape_manager_v1.get_tablet_tool_v2 h ~tablet_tool in
+      make_cursor_dev ~host_dev dev
+
+    method on_get_pointer _ dev ~pointer =
+      let pointer = to_host pointer in
+      let host_dev = H.Wp_cursor_shape_manager_v1.get_pointer h ~pointer in
+      make_cursor_dev ~host_dev dev
+  end
+
 (* This is basically the same as [Gtk_primary], but with things renamed a bit. *)
 module Zwp_primary = struct
   let make_data_offer ~client_offer h =
@@ -1326,6 +1354,7 @@ let registry =
     (module Zwp_relative_pointer_manager_v1);
     (module Zwp_pointer_constraints_v1);
     (module Wp_viewporter);
+    (module Wp_cursor_shape_manager_v1);
   ]
 
 let make_registry ~xwayland t reg =
@@ -1383,6 +1412,7 @@ let make_registry ~xwayland t reg =
       | Zwp_relative_pointer_manager_v1.T -> make_relative_pointer_manager bind proxy
       | Zwp_pointer_constraints_v1.T -> make_pointer_constraints bind proxy
       | Wp_viewporter.T -> make_viewporter bind proxy
+      | Wp_cursor_shape_manager_v1.T -> make_cursor_shape_manager bind proxy
       | _ -> Fmt.failwith "Invalid service name for %a" Proxy.pp proxy
   end;
   registry |> Array.iteri (fun name (_, entry) ->

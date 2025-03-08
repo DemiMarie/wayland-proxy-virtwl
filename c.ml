@@ -10,3 +10,4 @@ include Wayland_protocols.Xdg_decoration_unstable_v1_server
 include Wayland_protocols.Relative_pointer_unstable_v1_server
 include Wayland_protocols.Pointer_constraints_unstable_v1_server
 include Wayland_protocols.Viewporter_server
+include Wayland_protocols.Cursor_shape_v1_server
