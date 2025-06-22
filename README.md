@@ -58,11 +58,11 @@ Note: the proxy previously used the virtwl protocol, but virtio-gpu has now repl
 ### crosvm setup
 
 You will need crosvm R123-15786 or later on the host.
-I use [gitlab:talex5/crosvm](https://gitlab.com/talex5/crosvm/-/tree/b124-tal),
+I use [gitlab:talex5/crosvm](https://gitlab.com/talex5/crosvm/-/tree/0-unstable-2025-05-06-tal),
 which has some important fixes applied (see the Git log for details).
 It can be run as a Nix flake like this:
 
-    nix run 'git+https://gitlab.com/talex5/crosvm.git?ref=b124-tal&submodules=1'
+    nix run 'git+https://gitlab.com/talex5/crosvm.git?ref=0-unstable-2025-05-06-tal&submodules=1'
 
 You will need to run with `--gpu=context-types=cross-domain:virgl2` to proxy Wayland connections.
 My [qubes-lite][] repository creates the scripts I use to run it, but these will need modifying for other systems.
